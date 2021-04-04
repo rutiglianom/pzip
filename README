@@ -1,0 +1,34 @@
+Matthew Rutigliano (Done alone)
+CPSC 3500
+Project 3: pzip
+February 13th, 2021
+
+1.
+How to parallelize compression: I had several threads compressing intervals of
+the input, outputting them to a character and integer buffer. When compression is complete, the buffers
+are printed appropriately.
+How to determine how many threads to create: I stuck with the default 5, as too
+many threads made each thread's job too small. 5 could be increased to make it more
+efficient, but only to a point.
+How to efficiently perform each piece of work: The input is divided up and boundaries are verified before
+the readers are created. Once each reader loads its boundaries in, nothing beyond the core compression 
+checks have to be performed.
+How to acces the input file efficiently: I used mmap to map the file into memory. This makes grabbing a
+character a simple pointer call across all threads.
+How to coordinate multiple threads: I broke the problem down into a producer consumer problem with an unbounded
+buffer. The threads performing the compression are producers, and the write thread is the consumer. In my
+problem, the consumer waits until the producers are entirely finished before running, since the buffer is big
+enough to hold the entire finished product. In implementing this design, I used the main thread as the consumer.
+Once the producer threads have been created and dispatched, the consumer calls pthread_join for all of them, 
+putting it to sleep until they have finished. This performs the necessary syncronization, without using any 
+mutex locks or semaphores. As each producer thread reads from an isolated interval of the input and writes
+to an isolated section of the buffer, they require no syncronization in performing their jobs.
+
+2.
+Strengths: I've observed up to a 50% decrease in execution time compared to wzip. Efficiency is most increased
+over large files. Output always matches wzip. Algorithm adjusts boundaries to make sure they aren't in the middle
+of a character run, and decreases the amount of jobs if boundaries overlap.
+Weaknesses: A significant amount of calculations are performed serially in main before the threads are
+dispatched. This creates some unavoidable overhead. I was unable to implement true multithreading across
+multiple files: my program simply runs the same process serially for each file, which significantly
+decreases efficiency across multiple files. The whole program is fairly complicated.
